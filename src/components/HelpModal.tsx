@@ -12,7 +12,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
         <div className="h-12 px-5 bg-slate-50 dark:bg-neutral-950 border-b border-slate-200 dark:border-neutral-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <HelpCircle className="w-4 h-4 text-red-600" />
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Milan-remoteDesktop Guide</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">MilanView Guide</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
             <X className="w-4 h-4" />

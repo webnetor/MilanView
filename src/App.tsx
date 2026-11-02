@@ -8,6 +8,7 @@ import { AddDeviceModal } from './components/AddDeviceModal';
 import { SecuritySettingsModal } from './components/SecuritySettingsModal';
 import { QRCodeModal } from './components/QRCodeModal';
 import { HelpModal } from './components/HelpModal';
+import { QuickConnectModal } from './components/QuickConnectModal';
 import { INITIAL_DEVICES } from './data/devices';
 import { INITIAL_LOCAL_FILES, INITIAL_REMOTE_FILES } from './data/sampleFileSystem';
 import { 
@@ -53,6 +54,7 @@ export default function App() {
   const [unattendedPassword, setUnattendedPassword] = useState<string>('milan');
 
   // Modals
+  const [quickConnectModalOpen, setQuickConnectModalOpen] = useState(false);
   const [incomingRequest, setIncomingRequest] = useState<IncomingSessionRequest | null>(null);
   const [addDeviceModalOpen, setAddDeviceModalOpen] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
@@ -541,7 +543,7 @@ export default function App() {
         activeTabId={activeTabId}
         onSelectTab={(tabId) => setActiveTabId(tabId)}
         onCloseTab={handleCloseTab}
-        onNewTab={() => setActiveTabId('tab-home')}
+        onNewTab={() => setQuickConnectModalOpen(true)}
         isDark={isDark}
         onToggleTheme={() => setIsDark(!isDark)}
         isMuted={isMuted}
@@ -647,6 +649,15 @@ export default function App() {
 
       {/* GUIDE & SHORTCUTS MODAL */}
       {helpModalOpen && <HelpModal onClose={() => setHelpModalOpen(false)} />}
+
+      {/* QUICK CONNECT / NEW REMOTE SESSION MODAL */}
+      {quickConnectModalOpen && (
+        <QuickConnectModal
+          devices={devices}
+          onConnect={handleConnect}
+          onClose={() => setQuickConnectModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

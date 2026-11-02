@@ -123,8 +123,8 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
 
   // Terminal state
   const [terminalHistory, setTerminalHistory] = useState<string[]>([
-    'Milan Remote Console [Version 10.0.22631.3007]',
-    '(c) Milan Workstation Corporation. All rights reserved.',
+    'MilanView Remote Console [Version 10.0.22631.3007]',
+    '(c) MilanView Workstation Corporation. All rights reserved.',
     '',
     `Connected to ${session.deviceTitle} (${session.address})`,
     'Type "help" for a list of available remote commands.',
@@ -134,12 +134,73 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
 
   // Notepad state
   const [notepadContent, setNotepadContent] = useState<string>(
-    '# Milan-remoteDesktop Session Notes\n\n- System latency: stable at ~11ms\n- End-to-end encrypted direct data channel\n- Cross-platform file drag-and-drop active'
+    '# MilanView Session Notes\n\n- System latency: stable at ~11ms\n- End-to-end encrypted direct data channel\n- Cross-platform file drag-and-drop active'
   );
 
   // Whiteboard canvas refs
   const whiteboardCanvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawingRef = useRef(false);
+
+  // Desktop workspace container ref
+  const desktopRef = useRef<HTMLDivElement>(null);
+
+  // Window dragging state & ref
+  const [draggingWindowId, setDraggingWindowId] = useState<string | null>(null);
+  const dragInfoRef = useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    initialX: number;
+    initialY: number;
+  } | null>(null);
+
+  const handleStartDrag = (e: React.PointerEvent, id: string) => {
+    // Only left-click initiates window drag
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    focusWindow(id);
+
+    const win = windows.find((w) => w.id === id);
+    if (!win || win.isMaximized) return;
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const initialX = win.x;
+    const initialY = win.y;
+
+    setDraggingWindowId(id);
+
+    const onPointerMove = (moveEvt: PointerEvent) => {
+      moveEvt.preventDefault();
+      const deltaX = moveEvt.clientX - startX;
+      const deltaY = moveEvt.clientY - startY;
+
+      const bounds = desktopRef.current?.getBoundingClientRect();
+      const maxW = bounds ? bounds.width : window.innerWidth;
+      const maxH = bounds ? bounds.height : window.innerHeight;
+      const winW = win.width || 480;
+
+      // Ensure window stays accessible inside desktop viewport
+      const newX = Math.max(-winW + 80, Math.min(maxW - 80, initialX + deltaX));
+      const newY = Math.max(0, Math.min(maxH - 50, initialY + deltaY));
+
+      setWindows((prev) =>
+        prev.map((w) => (w.id === id ? { ...w, x: Math.round(newX), y: Math.round(newY) } : w))
+      );
+    };
+
+    const onPointerUp = () => {
+      setDraggingWindowId(null);
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+    };
+
+    window.addEventListener('pointermove', onPointerMove, { passive: false });
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  };
 
   // CPU chart canvas ref for Task Manager
   const cpuCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -658,7 +719,8 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
 
       {/* REMOTE DESKTOP WORKSPACE (VIRTUAL OS ENVIRONMENT) */}
       <div
-        className={`flex-1 relative overflow-hidden flex flex-col justify-between ${
+        ref={desktopRef}
+        className={`flex-1 relative overflow-hidden flex flex-col justify-between select-none ${
           session.os === 'macos'
             ? 'bg-gradient-to-br from-indigo-950 via-slate-900 to-sky-950'
             : session.os === 'linux'
@@ -749,6 +811,7 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
         {windows.map((win) => {
           if (win.isMinimized) return null;
           const isFocused = activeWindowId === win.id;
+          const isBeingDragged = draggingWindowId === win.id;
 
           return (
             <div
@@ -758,23 +821,33 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
                 transform: win.isMaximized ? 'none' : `translate(${win.x}px, ${win.y}px)`,
                 width: win.isMaximized ? '100%' : `${win.width}px`,
                 height: win.isMaximized ? 'calc(100% - 40px)' : `${win.height}px`,
-                top: win.isMaximized ? 0 : undefined,
-                left: win.isMaximized ? 0 : undefined,
+                top: 0,
+                left: 0,
                 zIndex: win.zIndex,
               }}
-              className={`absolute rounded-lg shadow-2xl flex flex-col overflow-hidden transition-all duration-150 border ${
+              className={`absolute rounded-xl shadow-2xl flex flex-col overflow-hidden ${
+                isBeingDragged
+                  ? 'transition-none select-none ring-2 ring-red-500/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)] cursor-grabbing'
+                  : 'transition-all duration-150'
+              } border ${
                 isFocused
-                  ? 'border-neutral-350 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-neutral-900 dark:text-white'
-                  : 'border-neutral-250 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/90 text-neutral-700 dark:text-neutral-300'
+                  ? 'border-slate-350 dark:border-neutral-600 bg-white dark:bg-neutral-900 text-slate-900 dark:text-white'
+                  : 'border-slate-250 dark:border-neutral-800 bg-slate-50 dark:bg-neutral-900/90 text-slate-700 dark:text-neutral-300'
               }`}
             >
               {/* Window Title Bar */}
               <div
-                className={`h-9 px-3 flex items-center justify-between select-none cursor-move shrink-0 border-b ${
-                  isFocused ? 'bg-neutral-100 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-900 dark:text-white' : 'bg-neutral-50 dark:bg-neutral-900 border-neutral-200 dark:border-neutral-800 text-neutral-600 dark:text-neutral-300'
+                onPointerDown={(e) => handleStartDrag(e, win.id)}
+                onDoubleClick={() => maximizeWindow(win.id)}
+                className={`h-9 px-3 flex items-center justify-between select-none ${
+                  isBeingDragged ? 'cursor-grabbing' : 'cursor-grab'
+                } shrink-0 border-b touch-none ${
+                  isFocused
+                    ? 'bg-slate-100 dark:bg-neutral-800 border-slate-300 dark:border-neutral-700 text-slate-900 dark:text-white'
+                    : 'bg-slate-50 dark:bg-neutral-900 border-slate-200 dark:border-neutral-800 text-slate-600 dark:text-neutral-300'
                 }`}
               >
-                <div className="flex items-center gap-2 truncate">
+                <div className="flex items-center gap-2 truncate pointer-events-none">
                   {win.type === 'terminal' ? (
                     <TerminalIcon className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   ) : win.type === 'taskmgr' ? (
@@ -787,14 +860,14 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
                   <span className="text-xs font-semibold truncate">{win.title}</span>
                 </div>
 
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1" onPointerDown={(e) => e.stopPropagation()}>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       minimizeWindow(win.id);
                     }}
-                    className="w-6 h-6 hover:bg-neutral-200 dark:hover:bg-neutral-700 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white rounded-xs flex items-center justify-center transition-colors"
+                    className="w-6 h-6 hover:bg-slate-200 dark:hover:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white rounded-md flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <Minus className="w-3 h-3" />
                   </button>
@@ -804,7 +877,7 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
                       e.stopPropagation();
                       maximizeWindow(win.id);
                     }}
-                    className="w-6 h-6 hover:bg-neutral-700 text-neutral-400 hover:text-white rounded-xs flex items-center justify-center transition-colors"
+                    className="w-6 h-6 hover:bg-slate-200 dark:hover:bg-neutral-700 text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white rounded-md flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <Square className="w-2.5 h-2.5" />
                   </button>
@@ -814,7 +887,7 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
                       e.stopPropagation();
                       closeWindow(win.id);
                     }}
-                    className="w-6 h-6 hover:bg-red-600 text-neutral-400 hover:text-white rounded-xs flex items-center justify-center transition-colors"
+                    className="w-6 h-6 hover:bg-red-600 text-slate-500 hover:text-white rounded-md flex items-center justify-center transition-colors cursor-pointer"
                   >
                     <X className="w-3 h-3" />
                   </button>

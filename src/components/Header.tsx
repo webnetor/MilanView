@@ -55,13 +55,13 @@ export const Header: React.FC<HeaderProps> = ({
               ? 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-white border border-slate-300/90 dark:border-neutral-700 shadow-xs'
               : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-neutral-900'
           }`}
-          title="Milan-remoteDesktop Home"
+          title="MilanView Home"
         >
           {/* Iconic Milan Crimson Diamond Logo */}
           <div className="w-4 h-4 rounded-xs bg-gradient-to-tr from-red-600 via-rose-600 to-red-500 rotate-45 flex items-center justify-center shadow-xs shadow-red-500/30">
             <div className="w-1.5 h-1.5 bg-white rounded-2xs -rotate-45" />
           </div>
-          <span className="tracking-tight font-extrabold text-slate-900 dark:text-white">Milan</span>
+          <span className="tracking-tight font-extrabold text-slate-900 dark:text-white">Milan<span className="text-red-600 dark:text-red-500">View</span></span>
           <span className="text-[10px] text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/50 px-1 py-0.2 rounded">REMOTE</span>
         </button>
 
@@ -110,8 +110,9 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Plus Button to Open New Connection */}
         <button
           onClick={onNewTab}
-          className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-900 flex items-center justify-center text-slate-500 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white transition-colors shrink-0 ml-1 border border-transparent hover:border-slate-200 dark:hover:border-neutral-800"
+          className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-900 flex items-center justify-center text-slate-600 dark:text-neutral-400 hover:text-red-600 dark:hover:text-red-400 transition-colors shrink-0 ml-1 border border-transparent hover:border-slate-300 dark:hover:border-neutral-700 cursor-pointer"
           title="Open New Remote Session"
+          aria-label="Open New Remote Session"
         >
           <Plus className="w-3.5 h-3.5" />
         </button>

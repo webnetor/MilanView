@@ -154,7 +154,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                   type="button"
                   onClick={handleCopy}
                   className="p-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl transition-all active:scale-95 shadow-sm border border-white/20 flex items-center gap-1"
-                  title="Copy 9-digit Milan ID"
+                  title="Copy 9-digit MilanView ID"
                 >
                   {copied ? (
                     <>
@@ -213,7 +213,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-slate-600 dark:text-neutral-400 uppercase tracking-wider">
-                Remote Desk (Enter Milan ID or Alias)
+                Remote Desk (Enter MilanView ID or Alias)
               </span>
               <span className="text-xs text-emerald-700 dark:text-emerald-400 font-semibold flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-0.5 rounded-full border border-emerald-200/60 dark:border-emerald-800/60">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

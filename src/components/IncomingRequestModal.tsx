@@ -52,7 +52,7 @@ export const IncomingRequestModal: React.FC<IncomingRequestModalProps> = ({
             <ShieldAlert className="w-5 h-5 animate-pulse" />
             <div>
               <h3 className="text-sm font-bold tracking-tight">Incoming Connection Request</h3>
-              <p className="text-[11px] text-red-100">Milan-remoteDesktop P2P</p>
+              <p className="text-[11px] text-red-100">MilanView P2P Direct</p>
             </div>
           </div>
           <span className="text-xs font-mono font-bold bg-red-700 px-2 py-0.5 rounded">

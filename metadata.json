@@ -2,5 +2,7 @@
   "name": "Milan-remoteDesktop",
   "description": "Personal remote desktop application for seamless remote access and cross-platform file transfers with low latency control, dual-pane file manager, and session security.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
