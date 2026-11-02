@@ -12,9 +12,11 @@ import {
   Minus, 
   Square, 
   Settings,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react';
 import { SessionTab } from '../types';
+import { SatelliteLogo } from './SatelliteLogo';
 
 interface HeaderProps {
   tabs: SessionTab[];
@@ -28,6 +30,8 @@ interface HeaderProps {
   onToggleMute: () => void;
   onOpenSettings: () => void;
   onOpenHelp: () => void;
+  isBroadcasting?: boolean;
+  onOpenDownloadExe?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -42,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMute,
   onOpenSettings,
   onOpenHelp,
+  isBroadcasting = false,
+  onOpenDownloadExe,
 }) => {
   return (
     <header className="h-11 bg-white/95 dark:bg-neutral-950/95 backdrop-blur-md text-slate-800 dark:text-neutral-200 border-b border-slate-200/90 dark:border-neutral-800/90 flex items-center justify-between select-none px-2 z-50 shadow-[0_1px_3px_0_rgba(15,23,42,0.05)]">
@@ -50,19 +56,30 @@ export const Header: React.FC<HeaderProps> = ({
         {/* AnyDesk-style Brand Icon / Home button */}
         <button
           onClick={() => onSelectTab('tab-home')}
-          className={`flex items-center gap-2 px-3 h-full rounded-lg text-xs font-semibold transition-all shrink-0 ${
+          className={`flex items-center gap-2 px-3 h-full rounded-lg text-xs font-semibold transition-all shrink-0 cursor-pointer ${
             activeTabId === 'tab-home'
               ? 'bg-slate-100 dark:bg-neutral-800 text-slate-900 dark:text-white border border-slate-300/90 dark:border-neutral-700 shadow-xs'
               : 'text-slate-600 dark:text-neutral-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100/80 dark:hover:bg-neutral-900'
           }`}
-          title="MilanView Home"
+          title={isBroadcasting ? "MilanView Home (Screen Sharing Active)" : "MilanView Home"}
         >
-          {/* Iconic Milan Crimson Diamond Logo */}
-          <div className="w-4 h-4 rounded-xs bg-gradient-to-tr from-red-600 via-rose-600 to-red-500 rotate-45 flex items-center justify-center shadow-xs shadow-red-500/30">
-            <div className="w-1.5 h-1.5 bg-white rounded-2xs -rotate-45" />
-          </div>
-          <span className="tracking-tight font-extrabold text-slate-900 dark:text-white">Milan<span className="text-red-600 dark:text-red-500">View</span></span>
-          <span className="text-[10px] text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/50 px-1 py-0.2 rounded">REMOTE</span>
+          {/* Satellite App Icon - switches between Red (standard) and Emerald Green (broadcasting active) */}
+          <SatelliteLogo isBroadcasting={isBroadcasting} size={22} showBadge={true} />
+          
+          <span className="tracking-tight font-extrabold text-slate-900 dark:text-white">
+            Milan<span className={isBroadcasting ? 'text-emerald-600 dark:text-emerald-400 transition-colors' : 'text-red-600 dark:text-red-500 transition-colors'}>View</span>
+          </span>
+          
+          {isBroadcasting ? (
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-extrabold bg-emerald-100 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.2 rounded-md flex items-center gap-1 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
+              LIVE
+            </span>
+          ) : (
+            <span className="text-[10px] text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/50 px-1 py-0.2 rounded">
+              REMOTE
+            </span>
+          )}
         </button>
 
         {/* Dynamic Session Tabs */}
@@ -120,10 +137,22 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right Controls Zone */}
       <div className="flex items-center gap-1.5 shrink-0 pl-3">
+        {/* Windows .EXE Download Button */}
+        {onOpenDownloadExe && (
+          <button
+            onClick={onOpenDownloadExe}
+            className="flex items-center gap-1.5 px-2.5 py-1 text-xs text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 rounded-md font-extrabold shadow-sm active:scale-95 transition-all cursor-pointer"
+            title="Download MilanView.exe for Windows"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span className="text-[11px] font-bold">Download .EXE</span>
+          </button>
+        )}
+
         {/* Security Status Indicator */}
         <button
           onClick={onOpenSettings}
-          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-neutral-900 border border-emerald-200/80 dark:border-neutral-800 rounded-md transition-colors hover:bg-emerald-100/70"
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-neutral-900 border border-emerald-200/80 dark:border-neutral-800 rounded-md transition-colors hover:bg-emerald-100/70"
           title="Security & Permissions"
         >
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-500" />

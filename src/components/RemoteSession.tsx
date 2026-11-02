@@ -32,11 +32,15 @@ import {
   RefreshCw,
   Trash2,
   Save,
-  HelpCircle
+  HelpCircle,
+  Settings
 } from 'lucide-react';
 import { SessionTab, WindowItem, FileItem, OSType } from '../types';
 import { formatBytes, formatDuration } from '../utils/formatters';
 import { sounds } from '../utils/soundEffects';
+import { TelemetryOverlay, TelemetryDataPoint, BandwidthDataPoint } from './TelemetryOverlay';
+import { AdminControllerPanel } from './AdminControllerPanel';
+import { ViewerTelemetryMatrix } from './ViewerTelemetryMatrix';
 
 interface RemoteSessionProps {
   session: SessionTab;
@@ -55,10 +59,42 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
   onUploadFileToRemote,
   onDeleteRemoteFile,
 }) => {
-  // Session duration timer
+  // Session duration timer & real-time connection telemetry
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [latency, setLatency] = useState(session.latencyMs);
   const [bandwidth, setBandwidth] = useState(session.bandwidthMbps);
+  const [telemetryOpen, setTelemetryOpen] = useState(true);
+  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
+  const [jitter, setJitter] = useState(1.2);
+  const [packetLoss, setPacketLoss] = useState(0.0);
+  const [packetsTotal, setPacketsTotal] = useState(14850);
+  const [packetsDropped, setPacketsDropped] = useState(0);
+  const [isSimulatedStress, setIsSimulatedStress] = useState(false);
+  const [telemetryHistory, setTelemetryHistory] = useState<TelemetryDataPoint[]>([
+    { time: 1, latency: 11, jitter: 1.1, loss: 0.0 },
+    { time: 2, latency: 12, jitter: 1.3, loss: 0.0 },
+    { time: 3, latency: 10, jitter: 1.0, loss: 0.0 },
+    { time: 4, latency: 13, jitter: 1.4, loss: 0.0 },
+    { time: 5, latency: 11, jitter: 1.2, loss: 0.0 },
+    { time: 6, latency: 12, jitter: 1.1, loss: 0.0 },
+    { time: 7, latency: 11, jitter: 1.2, loss: 0.0 },
+  ]);
+
+  // Rolling 60-second bandwidth consumption history for Recharts telemetry chart
+  const [bandwidthHistory, setBandwidthHistory] = useState<BandwidthDataPoint[]>(() => {
+    const points: BandwidthDataPoint[] = [];
+    const baseBw = session.bandwidthMbps || 4.8;
+    for (let i = 59; i >= 0; i--) {
+      const variance = Math.sin(i / 4.5) * 0.42 + (Math.random() - 0.5) * 0.28;
+      const mbps = +(Math.max(1.8, baseBw + variance).toFixed(2));
+      points.push({
+        second: 60 - i,
+        label: i === 0 ? 'Now' : `-${i}s`,
+        mbps,
+      });
+    }
+    return points;
+  });
 
   // Floating toolbar states
   const [isToolbarExpanded, setIsToolbarExpanded] = useState(true);
@@ -206,18 +242,71 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
   const cpuCanvasRef = useRef<HTMLCanvasElement>(null);
   const cpuHistoryRef = useRef<number[]>([25, 28, 22, 34, 42, 30, 27, 31, 29, 36, 40, 32, 28]);
 
-  // Session timer and jitter effect
+  // Session timer, real-time jitter, packet loss, and telemetry history
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSeconds((prev) => prev + 1);
-      // Realistic minor latency jitter
-      if (Math.random() > 0.6) {
-        setLatency((prev) => Math.max(8, Math.min(22, prev + (Math.random() > 0.5 ? 1 : -1))));
-        setBandwidth((prev) => +(Math.max(2.8, Math.min(6.5, prev + (Math.random() - 0.5) * 0.4)).toFixed(1)));
+
+      // Packet counter increments (~120 packets per second for 60fps video + data channels)
+      setPacketsTotal((prev) => prev + Math.floor(115 + Math.random() * 20));
+
+      let currentBw: number;
+      if (isSimulatedStress) {
+        // High network load / Wi-Fi congestion simulation
+        const currentJitter = +(8.2 + Math.random() * 7.5).toFixed(1);
+        const currentLoss = +(1.8 + Math.random() * 2.2).toFixed(1);
+        const currentLat = Math.floor(48 + Math.random() * 30);
+        currentBw = +(Math.max(1.4, Math.min(3.4, 2.4 + (Math.random() - 0.5) * 0.8)).toFixed(2));
+
+        setJitter(currentJitter);
+        setPacketLoss(currentLoss);
+        setLatency(currentLat);
+        setBandwidth(currentBw);
+        setPacketsDropped((prev) => prev + Math.floor(1 + Math.random() * 3));
+
+        setTelemetryHistory((prev) => {
+          const next = [...prev, { time: Date.now(), latency: currentLat, jitter: currentJitter, loss: currentLoss }];
+          return next.slice(-25);
+        });
+      } else {
+        // Normal pristine low-latency direct P2P link
+        const currentJitter = +(0.8 + Math.random() * 0.8).toFixed(1);
+        const currentLoss = Math.random() > 0.94 ? 0.1 : 0.0;
+        let currentLat = latency;
+        if (Math.random() > 0.6) {
+          currentLat = Math.max(9, Math.min(16, latency + (Math.random() > 0.5 ? 1 : -1)));
+          setLatency(currentLat);
+        }
+        currentBw = +(Math.max(3.8, Math.min(6.8, bandwidth + (Math.random() - 0.5) * 0.4)).toFixed(2));
+        setBandwidth(currentBw);
+        setJitter(currentJitter);
+        setPacketLoss(currentLoss);
+
+        setTelemetryHistory((prev) => {
+          const next = [...prev, { time: Date.now(), latency: currentLat, jitter: currentJitter, loss: currentLoss }];
+          return next.slice(-25);
+        });
       }
+
+      // Update 60-second rolling bandwidth consumption series for Recharts
+      setBandwidthHistory((prev) => {
+        const sliced = prev.length >= 60 ? prev.slice(prev.length - 59) : prev;
+        const reindexed = sliced.map((pt, idx) => ({
+          ...pt,
+          label: `-${sliced.length - idx}s`,
+        }));
+        return [
+          ...reindexed,
+          {
+            second: Date.now(),
+            label: 'Now',
+            mbps: currentBw,
+          },
+        ];
+      });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [isSimulatedStress, latency, bandwidth]);
 
   // Animate Task Manager CPU canvas
   useEffect(() => {
@@ -552,16 +641,29 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
             </span>
           </div>
 
-          {/* Quick Metrics */}
-          <div className="hidden md:flex items-center gap-2 pr-2.5 border-r border-slate-200 dark:border-neutral-700/80 text-[11px] font-mono tabular-nums text-slate-600 dark:text-neutral-300">
-            <span className="text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-transparent">
+          {/* Quick Metrics (Clickable to open Telemetry HUD) */}
+          <button
+            type="button"
+            onClick={() => {
+              setTelemetryOpen(!telemetryOpen);
+              showToast(telemetryOpen ? 'Telemetry overlay closed' : 'Connection Telemetry overlay opened');
+            }}
+            className="hidden md:flex items-center gap-1.5 pr-2.5 border-r border-slate-200 dark:border-neutral-700/80 text-[11px] font-mono tabular-nums text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer"
+            title="Click to toggle Connection Telemetry HUD (Packet Loss, Jitter, RTT)"
+          >
+            <span className="text-emerald-700 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-200/60 dark:border-transparent flex items-center gap-1">
+              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
               {latency} ms
             </span>
             <span className="text-slate-300 dark:text-neutral-600">·</span>
-            <span className="font-bold text-slate-700 dark:text-neutral-200">60 FPS</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-semibold">{jitter.toFixed(1)}ms jit</span>
             <span className="text-slate-300 dark:text-neutral-600">·</span>
-            <span className="text-slate-500 dark:text-neutral-400">{bandwidth} MB/s</span>
-          </div>
+            <span className={packetLoss > 0 ? 'text-amber-500 font-bold' : 'text-emerald-600 dark:text-emerald-400 font-semibold'}>
+              {packetLoss.toFixed(1)}% loss
+            </span>
+            <span className="text-slate-300 dark:text-neutral-600">·</span>
+            <span className="font-bold text-slate-700 dark:text-neutral-200">60 FPS</span>
+          </button>
 
           {/* Main Action Buttons */}
           <div className="flex items-center gap-1.5">
@@ -660,6 +762,41 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
               <MessageSquare className="w-3.5 h-3.5" />
             </button>
 
+            {/* Connection Telemetry HUD Toggle */}
+            <button
+              type="button"
+              onClick={() => {
+                setTelemetryOpen(!telemetryOpen);
+                showToast(telemetryOpen ? 'Telemetry overlay closed' : 'Connection Telemetry overlay opened');
+              }}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold ${
+                telemetryOpen
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Real-Time Connection Telemetry HUD (Packet Loss, Jitter, RTT)"
+            >
+              <Activity className="w-3.5 h-3.5" />
+              <span className="hidden xl:inline">Telemetry</span>
+            </button>
+
+            {/* Session Settings & Operator Controller Button (Settings icon without text) */}
+            <button
+              type="button"
+              onClick={() => {
+                setAdminPanelOpen(!adminPanelOpen);
+                showToast(adminPanelOpen ? 'Session Settings closed' : 'Session Settings & Controller opened');
+              }}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${
+                adminPanelOpen
+                  ? 'bg-slate-800 text-white dark:bg-neutral-700 shadow-xs'
+                  : 'hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-600 dark:text-neutral-300 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Session Settings & Operator Controller"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+
             {/* Disconnect Button (Iconic AnyDesk Red phone button) */}
             <button
               type="button"
@@ -673,6 +810,54 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
           </div>
         </div>
       </div>
+
+      {/* CONNECTION TELEMETRY OVERLAY (REAL-TIME PACKET LOSS, JITTER, RTT & BITRATE) */}
+      <TelemetryOverlay
+        isOpen={telemetryOpen}
+        onClose={() => setTelemetryOpen(false)}
+        latencyMs={latency}
+        jitterMs={jitter}
+        packetLossPct={packetLoss}
+        bandwidthMbps={bandwidth}
+        fps={60}
+        packetsTotal={packetsTotal}
+        packetsDropped={packetsDropped}
+        history={telemetryHistory}
+        bandwidthHistory={bandwidthHistory}
+        deviceTitle={session.deviceTitle}
+        address={session.address}
+        isSimulatedStress={isSimulatedStress}
+        onToggleStress={() => {
+          setIsSimulatedStress(!isSimulatedStress);
+          showToast(!isSimulatedStress ? 'Simulating network congestion (elevated loss & jitter)' : 'Optimal low-latency network restored');
+        }}
+      />
+
+      {/* ADMIN (REMOTE CONTROLLER) PANEL */}
+      <AdminControllerPanel
+        isOpen={adminPanelOpen}
+        onClose={() => setAdminPanelOpen(false)}
+        deviceTitle={session.deviceTitle}
+        address={session.address}
+        os={session.os}
+        latencyMs={latency}
+        jitterMs={jitter}
+        packetLossPct={packetLoss}
+        bandwidthMbps={bandwidth}
+        fps={60}
+        packetsTotal={packetsTotal}
+        packetsDropped={packetsDropped}
+        history={telemetryHistory}
+        isSimulatedStress={isSimulatedStress}
+        onToggleStress={() => {
+          setIsSimulatedStress(!isSimulatedStress);
+          showToast(!isSimulatedStress ? 'Simulating network congestion (elevated loss & jitter)' : 'Optimal low-latency network restored');
+        }}
+        onSendCtrlAltDel={handleSendCtrlAltDel}
+        onOpenTaskManager={() => openWindow('taskmgr', session.os === 'macos' ? 'Activity Monitor' : 'Task Manager')}
+        onOpenTerminal={() => openWindow('terminal', session.os === 'macos' ? 'Terminal' : 'PowerShell')}
+        onShowToast={showToast}
+      />
 
       {/* WHITEBOARD ANNOTATION TOOLBAR (when active) */}
       {whiteboardActive && (
@@ -734,6 +919,24 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
       >
         {/* Subtle high-tech desktop wallpaper grid / gradient rings */}
         <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(#38bdf8_1px,transparent_1px)] [background-size:24px_24px]" />
+
+        {/* ON-SCREEN TELEMETRY MATRIX HUD ON VIEWER SCREEN */}
+        <ViewerTelemetryMatrix
+          latencyMs={latency}
+          jitterMs={jitter}
+          packetLossPct={packetLoss}
+          bandwidthMbps={bandwidth}
+          fps={60}
+          packetsTotal={packetsTotal}
+          packetsDropped={packetsDropped}
+          history={telemetryHistory}
+          isSimulatedStress={isSimulatedStress}
+          onToggleStress={() => {
+            setIsSimulatedStress(!isSimulatedStress);
+            showToast(!isSimulatedStress ? 'Simulating network congestion (elevated loss & jitter)' : 'Optimal low-latency network restored');
+          }}
+          deviceTitle={session.deviceTitle}
+        />
 
         {/* Remote Desktop Icons Grid */}
         <div className="relative z-10 p-4 grid grid-flow-col grid-rows-6 gap-3 w-fit">
@@ -943,6 +1146,31 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
                           Committed: 28/72 GB · Speed: 6000 MT/s
                         </span>
                       </div>
+                    </div>
+
+                    {/* Real-Time Session Telemetry (Admin Controller View) */}
+                    <div className="bg-neutral-900 border border-neutral-800 p-2.5 rounded-lg flex flex-wrap items-center justify-between gap-2 text-neutral-300">
+                      <div className="flex items-center gap-2">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse shrink-0" />
+                        <span className="font-bold text-white text-[11px]">Network Telemetry:</span>
+                        <span className="font-mono text-emerald-400 font-bold">{latency}ms latency</span>
+                        <span className="text-neutral-600">·</span>
+                        <span className="font-mono text-sky-400 font-semibold">{jitter.toFixed(1)}ms jitter</span>
+                        <span className="text-neutral-600">·</span>
+                        <span className={`font-mono font-bold ${packetLoss > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {packetLoss.toFixed(1)}% loss ({packetsDropped} dropped)
+                        </span>
+                        <span className="text-neutral-600">·</span>
+                        <span className="font-mono text-slate-300 font-semibold">{bandwidth.toFixed(1)} Mbps</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setAdminPanelOpen(true)}
+                        className="text-[10px] text-red-400 hover:text-red-300 font-bold flex items-center gap-1 cursor-pointer bg-neutral-800 px-2 py-0.5 rounded border border-neutral-700"
+                      >
+                        <ShieldCheck className="w-3 h-3 text-red-400" />
+                        <span>Admin Controller Panel &rarr;</span>
+                      </button>
                     </div>
 
                     {/* Process Table */}
@@ -1156,9 +1384,25 @@ export const RemoteSession: React.FC<RemoteSessionProps> = ({
             ))}
           </div>
 
-          {/* System Tray (Clock, Network, Sound) */}
+          {/* System Tray (Clock, Telemetry Matrix, Network, Sound) */}
           <div className="flex items-center gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400">P2P Ready</span>
+            <button
+              type="button"
+              onClick={() => {
+                setTelemetryOpen(!telemetryOpen);
+                showToast(telemetryOpen ? 'Telemetry overlay closed' : 'Connection Telemetry overlay opened');
+              }}
+              className="px-2 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25 font-mono text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors"
+              title="Viewer Screen Telemetry: Click to open full diagnostics"
+            >
+              <Activity className="w-3 h-3 text-emerald-500 animate-pulse" />
+              <span>{latency}ms</span>
+              <span className="text-neutral-400">·</span>
+              <span className={packetLoss > 0 ? 'text-amber-500' : 'text-emerald-500'}>{packetLoss.toFixed(1)}% loss</span>
+              <span className="text-neutral-400">·</span>
+              <span>{jitter.toFixed(1)}ms jit</span>
+            </button>
+            <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 hidden sm:inline">P2P Ready</span>
             <Wifi className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
             <Volume2 className="w-3.5 h-3.5 text-neutral-500 dark:text-neutral-400" />
             <span className="font-mono text-neutral-800 dark:text-neutral-200 ml-1">

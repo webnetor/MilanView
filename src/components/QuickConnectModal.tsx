@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Device, OSType } from '../types';
 import { formatMilanAddress, cleanMilanDigits } from '../utils/formatters';
+import { SatelliteLogo } from './SatelliteLogo';
 
 interface QuickConnectModalProps {
   devices: Device[];
@@ -71,9 +72,7 @@ export const QuickConnectModal: React.FC<QuickConnectModalProps> = ({
         {/* Header */}
         <div className="h-14 px-5 bg-slate-50 dark:bg-neutral-950 border-b border-slate-200 dark:border-neutral-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 rounded-xs bg-gradient-to-tr from-red-600 via-rose-600 to-red-500 rotate-45 flex items-center justify-center shadow-xs shadow-red-500/30">
-              <div className="w-1.5 h-1.5 bg-white rounded-2xs -rotate-45" />
-            </div>
+            <SatelliteLogo size={24} />
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Open New Remote Session</h3>
               <p className="text-[11px] text-slate-500 dark:text-neutral-400">Connect to any remote computer with MilanView</p>

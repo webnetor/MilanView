@@ -69,7 +69,7 @@ export const IncomingRequestModal: React.FC<IncomingRequestModalProps> = ({
             <div className="min-w-0 flex-1">
               <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{request.clientName}</h4>
               <p className="text-xs text-slate-500 dark:text-neutral-400 font-mono tracking-wider">
-                Milan ID: {request.clientAddress}
+                MilanView ID: {request.clientAddress}
               </p>
             </div>
           </div>

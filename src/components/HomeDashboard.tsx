@@ -17,10 +17,14 @@ import {
   HardDrive,
   Trash2,
   ExternalLink,
-  Lock
+  Lock,
+  Activity,
+  Zap,
+  Download
 } from 'lucide-react';
-import { Device, OSType } from '../types';
+import { Device, OSType, SessionTab } from '../types';
 import { formatMilanAddress, cleanMilanDigits } from '../utils/formatters';
+import { SatelliteLogo } from './SatelliteLogo';
 
 interface HomeDashboardProps {
   myAddress: string;
@@ -33,6 +37,9 @@ interface HomeDashboardProps {
   onOpenQRCode: () => void;
   onStartLiveBroadcast: () => void;
   isBroadcasting: boolean;
+  activeSessions?: SessionTab[];
+  onSelectSession?: (id: string) => void;
+  onOpenDownloadExe?: () => void;
 }
 
 export const HomeDashboard: React.FC<HomeDashboardProps> = ({
@@ -46,6 +53,9 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
   onOpenQRCode,
   onStartLiveBroadcast,
   isBroadcasting,
+  activeSessions = [],
+  onSelectSession,
+  onOpenDownloadExe,
 }) => {
   const [remoteInput, setRemoteInput] = useState('');
   const [copied, setCopied] = useState(false);
@@ -125,15 +135,22 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 
           <div className="space-y-4 relative z-10">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-2.5 h-2.5 rounded-full bg-white shadow-xs animate-ping" />
-                <span className="text-xs font-bold text-red-100 uppercase tracking-wider">
-                  This Desk (Your Address)
-                </span>
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-xl bg-black/25 backdrop-blur-xs border border-white/25 flex items-center justify-center shadow-xs">
+                  <SatelliteLogo isBroadcasting={isBroadcasting} size={22} showBadge={true} />
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-red-100 uppercase tracking-wider block">
+                    This Desk (Your Address)
+                  </span>
+                  <span className="text-[10px] text-white/80 font-mono">
+                    {isBroadcasting ? 'Broadcast Mode: Active Live' : 'MilanView Workstation'}
+                  </span>
+                </div>
               </div>
               <div className="flex items-center gap-1.5 text-xs bg-black/20 backdrop-blur-md px-3 py-1 rounded-full text-white font-medium border border-white/20">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="font-semibold text-[11px]">Online & Ready</span>
+                <span className={`w-2 h-2 rounded-full ${isBroadcasting ? 'bg-emerald-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                <span className="font-semibold text-[11px]">{isBroadcasting ? 'Sharing Active' : 'Online & Ready'}</span>
               </div>
             </div>
 
@@ -153,7 +170,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <button
                   type="button"
                   onClick={handleCopy}
-                  className="p-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl transition-all active:scale-95 shadow-sm border border-white/20 flex items-center gap-1"
+                  className="p-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl transition-all active:scale-95 shadow-sm border border-white/20 flex items-center gap-1 cursor-pointer"
                   title="Copy 9-digit MilanView ID"
                 >
                   {copied ? (
@@ -168,7 +185,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
                 <button
                   type="button"
                   onClick={onOpenQRCode}
-                  className="p-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl transition-all active:scale-95 shadow-sm border border-white/20"
+                  className="p-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl transition-all active:scale-95 shadow-sm border border-white/20 cursor-pointer"
                   title="Show QR Code for mobile pairing"
                 >
                   <QrCode className="w-4 h-4" />
@@ -182,28 +199,40 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
 
           {/* Quick Actions Row */}
-          <div className="pt-4 border-t border-white/20 mt-4 flex items-center justify-between gap-2 relative z-10">
+          <div className="pt-4 border-t border-white/20 mt-4 flex flex-wrap items-center justify-between gap-2 relative z-10">
             <button
               type="button"
               onClick={onOpenSettings}
-              className="flex items-center gap-1.5 text-xs text-white/90 hover:text-white font-semibold transition-colors hover:underline underline-offset-4"
+              className="flex items-center gap-1.5 text-xs text-white/90 hover:text-white font-semibold transition-colors hover:underline underline-offset-4 cursor-pointer"
             >
               <Lock className="w-3.5 h-3.5 text-red-200" />
               <span>Unattended Access</span>
             </button>
 
+            {onOpenDownloadExe && (
+              <button
+                type="button"
+                onClick={onOpenDownloadExe}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-black/20 hover:bg-black/30 border border-white/30 text-white rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                title="Download MilanView.exe for Windows"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download .EXE</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onStartLiveBroadcast}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-extrabold transition-all duration-300 shadow-md active:scale-95 cursor-pointer ${
                 isBroadcasting
-                  ? 'bg-white text-red-700 animate-pulse ring-2 ring-white/50'
-                  : 'bg-white text-red-700 hover:bg-red-50 hover:shadow-lg'
+                  ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white ring-4 ring-emerald-300/40 shadow-emerald-950/40 animate-pulse'
+                  : 'bg-white hover:bg-red-50 text-red-700 hover:text-red-800 shadow-sm border border-white/30'
               }`}
-              title="Broadcast your screen via Screen Capture API"
+              title={isBroadcasting ? 'Click to stop screen sharing broadcast' : 'Broadcast your screen via Screen Capture API'}
             >
-              <Radio className="w-3.5 h-3.5 text-red-600" />
-              <span>{isBroadcasting ? 'Broadcasting...' : 'Share My Screen'}</span>
+              <SatelliteLogo isBroadcasting={isBroadcasting} size={18} />
+              <span>{isBroadcasting ? 'Stop Sharing (Live)' : 'Share My Screen'}</span>
             </button>
           </div>
         </div>
@@ -286,6 +315,39 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* WINDOWS EXE DOWNLOAD BANNER */}
+      {onOpenDownloadExe && (
+        <div className="max-w-7xl mx-auto bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white rounded-2xl p-4 md:p-5 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-black/20 backdrop-blur-md border border-white/25 flex items-center justify-center shrink-0">
+              <Monitor className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm tracking-wide">
+                  MilanView for Windows (.exe)
+                </span>
+                <span className="text-[10px] font-mono font-bold bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  Native x64 / Portable
+                </span>
+              </div>
+              <p className="text-xs text-red-100 opacity-90 mt-0.5">
+                Run MilanView as a standalone native Windows desktop application with zero installation.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenDownloadExe}
+            className="px-5 py-2.5 bg-white hover:bg-red-50 text-red-700 hover:text-red-800 font-extrabold rounded-xl shadow-md active:scale-95 transition-all flex items-center gap-2 cursor-pointer text-xs shrink-0"
+          >
+            <Download className="w-4 h-4" />
+            <span>Download MilanView.exe</span>
+          </button>
+        </div>
+      )}
 
       {/* Feature Metric Highlights Strip (Adds distinct polish to Light Mode) */}
       <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-3.5">

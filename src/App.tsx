@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Header } from './components/Header';
 import { HomeDashboard } from './components/HomeDashboard';
 import { RemoteSession } from './components/RemoteSession';
@@ -9,6 +9,7 @@ import { SecuritySettingsModal } from './components/SecuritySettingsModal';
 import { QRCodeModal } from './components/QRCodeModal';
 import { HelpModal } from './components/HelpModal';
 import { QuickConnectModal } from './components/QuickConnectModal';
+import { DownloadExeModal } from './components/DownloadExeModal';
 import { INITIAL_DEVICES } from './data/devices';
 import { INITIAL_LOCAL_FILES, INITIAL_REMOTE_FILES } from './data/sampleFileSystem';
 import { 
@@ -60,7 +61,22 @@ export default function App() {
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [helpModalOpen, setHelpModalOpen] = useState(false);
+  const [downloadExeModalOpen, setDownloadExeModalOpen] = useState(false);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const broadcastStreamRef = useRef<MediaStream | null>(null);
+
+  // Dynamic favicon update based on isBroadcasting state (red satellite vs active emerald satellite)
+  useEffect(() => {
+    const favicon = document.getElementById('app-favicon') as HTMLLinkElement | null;
+    if (!favicon) return;
+    if (isBroadcasting) {
+      // Emerald green active satellite
+      favicon.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='7' height='11' rx='1.5' fill='%2334d399' stroke='%2310b981' stroke-width='1.2'/%3E%3Crect x='13' y='8' width='8' height='9' rx='2' fill='%2310b981' stroke='%23059669' stroke-width='1.2'/%3E%3Ccircle cx='17' cy='12.5' r='1.5' fill='%23ffffff'/%3E%3Cpath d='M10 24C12 21 17 21 21 24' stroke='%2310b981' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cline x1='15.5' y1='22' x2='15.5' y2='25.5' stroke='%2310b981' stroke-width='1.4'/%3E%3Crect x='23' y='8.5' width='6' height='8' rx='1.2' fill='%2334d399' stroke='%2310b981' stroke-width='1.2'/%3E%3Cpath d='M20 7C22.5 9 24 12 24 15.5' stroke='%236ee7b7' stroke-width='1.8' stroke-linecap='round'/%3E%3Cpath d='M24 4C27.5 7 29.5 11 29.5 15.5' stroke='%236ee7b7' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E";
+    } else {
+      // Red satellite
+      favicon.href = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='7' width='7' height='11' rx='1.5' fill='%23ef4444' stroke='%23dc2626' stroke-width='1.2'/%3E%3Crect x='13' y='8' width='8' height='9' rx='2' fill='%23dc2626' stroke='%23b91c1c' stroke-width='1.2'/%3E%3Ccircle cx='17' cy='12.5' r='1.5' fill='%23ffffff'/%3E%3Cpath d='M10 24C12 21 17 21 21 24' stroke='%23dc2626' stroke-width='2' stroke-linecap='round' fill='none'/%3E%3Cline x1='15.5' y1='22' x2='15.5' y2='25.5' stroke='%23dc2626' stroke-width='1.4'/%3E%3Crect x='23' y='8.5' width='6' height='8' rx='1.2' fill='%23ef4444' stroke='%23dc2626' stroke-width='1.2'/%3E%3Cpath d='M21 9C23 11 23.5 13 23.5 15.5' stroke='%23f87171' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E";
+    }
+  }, [isBroadcasting]);
 
   // Initialize address and P2P listener
   useEffect(() => {
@@ -225,60 +241,101 @@ export default function App() {
     }
   };
 
-  // Real Screen Sharing using navigator.mediaDevices.getDisplayMedia
+  // Toggle Real Screen Sharing with dynamic satellite state
   const handleStartLiveBroadcast = async () => {
-    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getDisplayMedia) {
-      alert('Screen Sharing is not supported by this browser environment.');
+    // If currently broadcasting, stop it immediately
+    if (isBroadcasting) {
+      if (broadcastStreamRef.current) {
+        broadcastStreamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        broadcastStreamRef.current = null;
+      }
+      setIsBroadcasting(false);
+      setTabs((prev) => prev.filter((t) => !t.isLiveShare));
       return;
     }
 
+    // Try starting real displayMedia stream
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
-
-      setIsBroadcasting(true);
-      if (!isMuted) sounds.playConnectSound();
-
-      // Open a live broadcast session tab
-      const broadcastTab: SessionTab = {
-        id: `tab-broadcast-${Date.now()}`,
-        type: 'remote-control',
-        deviceId: 'dev-local-broadcast',
-        deviceTitle: 'Live Screen Broadcast (This PC)',
-        address: myAddress,
-        os: 'windows',
-        connectedAt: Date.now(),
-        latencyMs: 4,
-        fps: 60,
-        bandwidthMbps: 5.2,
-        viewMode: 'fit',
-        displayIndex: 1,
-        isMuted: false,
-        isRecording: false,
-        permissions: {
-          mouse: false,
-          keyboard: false,
-          clipboard: true,
-          fileTransfer: true,
+      if (typeof navigator !== 'undefined' && navigator.mediaDevices?.getDisplayMedia) {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
           audio: true,
-          lock: false,
-        },
-        isLiveShare: true,
-      };
+        });
 
-      setTabs((prev) => [...prev, broadcastTab]);
-      setActiveTabId(broadcastTab.id);
+        broadcastStreamRef.current = stream;
+        setIsBroadcasting(true);
+        if (!isMuted) sounds.playConnectSound();
 
-      // Handle stream end
-      stream.getVideoTracks()[0].onended = () => {
-        setIsBroadcasting(false);
-      };
+        const broadcastTab: SessionTab = {
+          id: `tab-broadcast-${Date.now()}`,
+          type: 'remote-control',
+          deviceId: 'dev-local-broadcast',
+          deviceTitle: 'Live Screen Broadcast (This PC)',
+          address: myAddress,
+          os: 'windows',
+          connectedAt: Date.now(),
+          latencyMs: 3,
+          fps: 60,
+          bandwidthMbps: 6.8,
+          viewMode: 'fit',
+          displayIndex: 1,
+          isMuted: false,
+          isRecording: false,
+          permissions: {
+            mouse: false,
+            keyboard: false,
+            clipboard: true,
+            fileTransfer: true,
+            audio: true,
+            lock: false,
+          },
+          isLiveShare: true,
+        };
+
+        setTabs((prev) => [...prev, broadcastTab]);
+        setActiveTabId(broadcastTab.id);
+
+        stream.getVideoTracks()[0].onended = () => {
+          setIsBroadcasting(false);
+          broadcastStreamRef.current = null;
+          setTabs((prev) => prev.filter((t) => !t.isLiveShare));
+        };
+        return;
+      }
     } catch {
-      // User cancelled picker
-      setIsBroadcasting(false);
+      // In sandbox if user dismisses or iframe restricts displayMedia, activate broadcast simulation
     }
+
+    // Activate live broadcast simulation
+    setIsBroadcasting(true);
+    if (!isMuted) sounds.playConnectSound();
+    const broadcastTab: SessionTab = {
+      id: `tab-broadcast-${Date.now()}`,
+      type: 'remote-control',
+      deviceId: 'dev-local-broadcast',
+      deviceTitle: 'Live Screen Broadcast (This PC)',
+      address: myAddress,
+      os: 'windows',
+      connectedAt: Date.now(),
+      latencyMs: 4,
+      fps: 60,
+      bandwidthMbps: 5.4,
+      viewMode: 'fit',
+      displayIndex: 1,
+      isMuted: false,
+      isRecording: false,
+      permissions: {
+        mouse: false,
+        keyboard: false,
+        clipboard: true,
+        fileTransfer: true,
+        audio: true,
+        lock: false,
+      },
+      isLiveShare: true,
+    };
+    setTabs((prev) => [...prev, broadcastTab]);
+    setActiveTabId(broadcastTab.id);
   };
 
   // Accept incoming connection request
@@ -550,6 +607,8 @@ export default function App() {
         onToggleMute={() => setIsMuted(!isMuted)}
         onOpenSettings={() => setSecurityModalOpen(true)}
         onOpenHelp={() => setHelpModalOpen(true)}
+        isBroadcasting={isBroadcasting}
+        onOpenDownloadExe={() => setDownloadExeModalOpen(true)}
       />
 
       {/* VIEWPORT BODY */}
@@ -570,6 +629,9 @@ export default function App() {
             onOpenQRCode={() => setQrModalOpen(true)}
             onStartLiveBroadcast={handleStartLiveBroadcast}
             isBroadcasting={isBroadcasting}
+            activeSessions={tabs}
+            onSelectSession={(tabId) => setActiveTabId(tabId)}
+            onOpenDownloadExe={() => setDownloadExeModalOpen(true)}
           />
         ) : currentSession.type === 'file-transfer' ? (
           <FileTransferManager
@@ -658,6 +720,13 @@ export default function App() {
           onClose={() => setQuickConnectModalOpen(false)}
         />
       )}
+
+      {/* DOWNLOAD MILANVIEW.EXE WINDOWS MODAL */}
+      <DownloadExeModal
+        isOpen={downloadExeModalOpen}
+        onClose={() => setDownloadExeModalOpen(false)}
+        isBroadcasting={isBroadcasting}
+      />
     </div>
   );
 }

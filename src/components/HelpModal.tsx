@@ -1,5 +1,6 @@
 import React from 'react';
-import { HelpCircle, X, Monitor, FolderSync, ShieldCheck, Sparkles } from 'lucide-react';
+import { X, Monitor, FolderSync, ShieldCheck, Sparkles } from 'lucide-react';
+import { SatelliteLogo } from './SatelliteLogo';
 
 interface HelpModalProps {
   onClose: () => void;
@@ -10,8 +11,8 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
       <div className="bg-white dark:bg-neutral-900 border border-slate-200 dark:border-neutral-700 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         <div className="h-12 px-5 bg-slate-50 dark:bg-neutral-950 border-b border-slate-200 dark:border-neutral-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <HelpCircle className="w-4 h-4 text-red-600" />
+          <div className="flex items-center gap-2.5">
+            <SatelliteLogo size={20} />
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">MilanView Guide</h3>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer">
@@ -26,7 +27,7 @@ export const HelpModal: React.FC<HelpModalProps> = ({ onClose }) => {
               1. Seamless Remote Desktop Access
             </h4>
             <p className="text-slate-600 dark:text-neutral-400 leading-relaxed font-normal">
-              Connect to any workstation or server instantly by entering its 9-digit Milan ID or alias, or clicking a saved device in the Address Book. You get complete interactive control with low latency (sub-15ms), 60 FPS video, multi-monitor display switching, interactive Terminal, and Task Manager.
+              Connect to any workstation or server instantly by entering its 9-digit MilanView ID or alias, or clicking a saved device in the Address Book. You get complete interactive control with low latency (sub-15ms), 60 FPS video, multi-monitor display switching, interactive Terminal, and Task Manager.
             </p>
           </div>
 
